@@ -137,19 +137,19 @@ with st.sidebar:
     )
     st.divider()
 # --- 2. DATA ORCHESTRATION () ---
+# --- 2. DATA ORCHESTRATION ---
 @st.cache_data
 def fetch_data():
     try:
-        # Load the exported CSV file from the same folder
+        # This looks for the CSV file you uploaded to GitHub
         df = pd.read_csv("Kalavati_Advanced_BMS.csv")
         
-        # Ensure your numeric columns are correctly typed
+        # Feature Engineering (This must match your model's training)
         df['Fee_per_User'] = df['Monthly_Fee_INR'] / df['Total_Users']
         return df
     except Exception as e:
-        st.error(f"Error loading data: {e}")
+        st.error(f"Critical Error: Could not find 'Kalavati_Advanced_BMS.csv'. Ensure it is uploaded to GitHub. Error: {e}")
         return pd.DataFrame()
-
 # --- 3. SIDEBAR CONTROLS ---
 with st.sidebar:
     st.title("🛡️ Control Center")
