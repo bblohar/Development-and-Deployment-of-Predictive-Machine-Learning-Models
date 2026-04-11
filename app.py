@@ -276,7 +276,8 @@ with tab2:
                 if col not in ['CustomerID', 'Customer_Name', 'Location']:
                     df[col] = le.fit_transform(df[col])
             
-            X = df.drop(['Is_Churn', 'CustomerID', 'Customer_Name', 'Location'], axis=1, errors='ignore')
+            # UPDATE THIS LINE IN TAB 2:
+            X = df.drop(['Is_Churn', 'CustomerID', 'Customer_Name', 'Location', 'Industry'], axis=1, errors='ignore')
             y = df['Is_Churn']
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -368,7 +369,8 @@ with tab2:
             with c2:
                 st.write("**Feature Importance**")
                 if best_model_name != "Logistic Regression":
-                    imp = pd.DataFrame({'Feature': X.columns, 'Value': best_model_obj.feature_importances_}).sort_values(by='Value', ascending=False).head(6)
+                    # This should already work if you use X.columns, but check your 'imp' dataframe
+                    imp = pd.DataFrame({'Feature': X.columns, 'Value': best_model_obj.feature_importances_})
                     fig_imp = px.bar(imp, x='Value', y='Feature', orientation='h', template="plotly_dark", color_continuous_scale='Blues')
                     st.plotly_chart(fig_imp, use_container_width=True, key="tab2_winning_imp")
 # --- TAB 3: ENTERPRISE COMMAND CENTER (OBJ 3, 4, & 6) ---
