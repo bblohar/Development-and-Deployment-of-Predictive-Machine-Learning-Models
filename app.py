@@ -30,7 +30,7 @@ st.markdown("""
 @st.cache_data
 def fetch_data():
     try:
-        # Looking for the exact file name from your previous messages
+        # Looking for the exact file name
         df = pd.read_csv("Kalavati_Advanced_BMS.csv")
         df['Fee_per_User'] = df['Monthly_Fee_INR'] / df['Total_Users']
         return df
@@ -71,11 +71,10 @@ with tab2:
                 
                 model = XGBClassifier().fit(X_bal, y_bal)
                 joblib.dump(model, 'best_model.pkl')
-                joblib.dump(X.columns.tolist(), 'features.pkl')
                 
                 st.success(f"🏆 XGBoost Recall: {recall_score(y_test, model.predict(X_test)):.1%}")
-                imp = pd.DataFrame({'Feature': X.columns, 'Impact': model.feature_importances_}).sort_values('Impact', ascending=False)
-                st.plotly_chart(px.bar(imp, x='Impact', y='Feature', orientation='h', template="plotly_dark"), use_container_width=True)
+                imp = pd.DataFrame({'Feature': X.columns, 'Importance': model.feature_importances_}).sort_values('Importance', ascending=False)
+                st.plotly_chart(px.bar(imp, x='Importance', y='Feature', orientation='h', template="plotly_dark"), use_container_width=True)
 
 with tab3:
     st.subheader("Enterprise Risk Command Center")
@@ -89,6 +88,7 @@ with tab3:
                 st.write(f"### Audit for {row['Customer_Name']}")
                 st.dataframe(match, use_container_width=True)
                 
+                # Logic to simulate risk for the demo
                 prob = 0.88 if row['Is_Churn'] == 1 else 0.05
                 fig = go.Figure(go.Indicator(mode="gauge+number", value=prob*100, title={'text': "Risk Score %"},
                                               gauge={'bar': {'color': "#da3633" if prob > 0.5 else "#238636"}}))

@@ -4,9 +4,5 @@ numpy
 scikit-learn
 xgboost
 joblib
-shap
 plotly
-seaborn
-matplotlib
-faker
 imbalanced-learn
