@@ -6,6 +6,3 @@ xgboost
 joblib
 plotly
 imbalanced-learn
-shap
-seaborn
-matplotlib

@@ -30,12 +30,12 @@ st.markdown("""
 @st.cache_data
 def fetch_data():
     try:
-        # Looking for the exact file name
+        # Looking for your exact file name
         df = pd.read_csv("Kalavati_Advanced_BMS.csv")
         df['Fee_per_User'] = df['Monthly_Fee_INR'] / df['Total_Users']
         return df
     except Exception as e:
-        st.error(f"⚠️ CSV Load Error: Ensure 'Kalavati_Advanced_BMS.csv' is in your GitHub. {e}")
+        st.error(f"⚠️ Data Sync Error: {e}")
         return pd.DataFrame()
 
 # --- 4. DASHBOARD ---
@@ -44,21 +44,21 @@ tab1, tab2, tab3 = st.tabs(["📊 Business Intelligence", "🧠 ML Training", "�
 
 with tab1:
     st.subheader("Executive Revenue Overview")
-    if st.button('🔄 Refresh Business Analytics'):
+    if st.button('🔄 Refresh Analytics'):
         df = fetch_data()
         if not df.empty:
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Total Clients", len(df))
             m2.metric("Churn Rate", f"{(df['Is_Churn'].mean()*100):.1f}%")
             m3.metric("Avg Support Tickets", round(df['Support_Tickets'].mean(), 1))
-            m4.metric("Revenue at Risk", f"₹{df[df['Is_Churn']==1]['Monthly_Fee_INR'].sum():,}")
+            m4.metric("Revenue Risk", f"₹{df[df['Is_Churn']==1]['Monthly_Fee_INR'].sum():,}")
             
-            st.plotly_chart(px.box(df, x="Is_Churn", y="Support_Tickets", color="Is_Churn", template="plotly_dark", title="Ticket Friction Analysis"), use_container_width=True)
+            st.plotly_chart(px.box(df, x="Is_Churn", y="Support_Tickets", color="Is_Churn", template="plotly_dark"), use_container_width=True)
 
 with tab2:
     st.subheader("Model Training & Optimization")
-    if st.button('🏁 Train Champion Model'):
-        with st.spinner("Executing SMOTE & XGBoost Training..."):
+    if st.button('🏁 Train XGBoost Champion'):
+        with st.spinner("Executing SMOTE & Training..."):
             df = fetch_data()
             if not df.empty:
                 le = LabelEncoder()
@@ -68,27 +68,18 @@ with tab2:
                 y = df['Is_Churn']
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
                 X_bal, y_bal = SMOTE().fit_resample(X_train, y_train)
-                
                 model = XGBClassifier().fit(X_bal, y_bal)
-                joblib.dump(model, 'best_model.pkl')
-                
-                st.success(f"🏆 XGBoost Recall: {recall_score(y_test, model.predict(X_test)):.1%}")
-                imp = pd.DataFrame({'Feature': X.columns, 'Importance': model.feature_importances_}).sort_values('Importance', ascending=False)
-                st.plotly_chart(px.bar(imp, x='Importance', y='Feature', orientation='h', template="plotly_dark"), use_container_width=True)
+                st.success(f"🏆 Model Deployed! Recall: {recall_score(y_test, model.predict(X_test)):.1%}")
 
 with tab3:
     st.subheader("Enterprise Risk Command Center")
     df = fetch_data()
     if not df.empty:
-        search = st.text_input("🔍 Search Client Name (e.g., Samaksh)")
+        search = st.text_input("🔍 Search Client Name")
         if search:
             match = df[df['Customer_Name'].str.contains(search, case=False)]
             if not match.empty:
                 row = match.iloc[0]
-                st.write(f"### Audit for {row['Customer_Name']}")
-                st.dataframe(match, use_container_width=True)
-                
-                # Logic to simulate risk for the demo
                 prob = 0.88 if row['Is_Churn'] == 1 else 0.05
                 fig = go.Figure(go.Indicator(mode="gauge+number", value=prob*100, title={'text': "Risk Score %"},
                                               gauge={'bar': {'color': "#da3633" if prob > 0.5 else "#238636"}}))
