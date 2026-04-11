@@ -139,18 +139,15 @@ with st.sidebar:
 # --- 2. DATA ORCHESTRATION () ---
 @st.cache_data
 def fetch_data():
-    # Update these credentials for your environment
     try:
-        conn = mysql.connector.connect(
-            host="localhost", user="root", password="Spyrob@2909", database="kalavati_db"
-        )
-        df = pd.read_sql("SELECT * FROM kalavati_advanced_bms_data", conn)
-        conn.close()
-        # 1: Feature Construction
+        # Load the exported CSV file from the same folder
+        df = pd.read_csv("Kalavati_Advanced_BMS.csv")
+        
+        # Ensure your numeric columns are correctly typed
         df['Fee_per_User'] = df['Monthly_Fee_INR'] / df['Total_Users']
         return df
-    except:
-        st.error("Database Connection Failed. Please check MySQL settings.")
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
 # --- 3. SIDEBAR CONTROLS ---
