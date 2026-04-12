@@ -9,17 +9,6 @@ shap
 requests
 scikit-learn
 xgboost
-imblearnstreamlit
-pandas
-mysql-connector-python
-seaborn
-matplotlib
-plotly
-joblib
-shap
-requests
-scikit-learn
-xgboost
 imblearn
 fastapi
 uvicorn
