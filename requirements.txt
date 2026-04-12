@@ -1,0 +1,12 @@
+streamlit
+pandas
+mysql-connector-python
+seaborn
+matplotlib
+plotly
+joblib
+shap
+requests
+scikit-learn
+xgboost
+imblearn
