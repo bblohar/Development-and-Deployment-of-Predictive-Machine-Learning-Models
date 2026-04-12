@@ -18,6 +18,7 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from sklearn.ensemble import RandomForestClassifier  
 from sklearn.linear_model import LogisticRegression  
 from imblearn.over_sampling import SMOTE
+from sklearn.model_selection import cross_val_score
 from sklearn.metrics import confusion_matrix
 # --------------------------------
 import streamlit as st
@@ -26,7 +27,7 @@ import streamlit as st
 st.set_page_config(
     page_title="Kalavati AI System | ERP", 
     layout="wide", 
-    page_icon="🛡️" 
+    initial_sidebar_state="expanded" 
 )
 
 # --- 2. PREMIUM CSS STYLING ---
@@ -152,13 +153,13 @@ def fetch_data():
         return pd.DataFrame()
 # --- 3. SIDEBAR CONTROLS ---
 with st.sidebar:
-    st.title("🛡️ Control Center")
+    st.title("Control Center")
     st.divider()
-    with st.expander("💳 Financial Data", expanded=True):
+    with st.expander("Financial Data", expanded=True):
         fee = st.number_input("Monthly Fee (INR)", 500, 5000, 1500)
         total_users = st.slider("Total Users", 1, 50, 5)
         delay = st.slider("Payment Delay (Days)", 0, 30, 0)
-    with st.expander("📊 Engagement Metrics", expanded=True):
+    with st.expander("Engagement Metrics", expanded=True):
         usage = st.slider("Usage Score", 0, 100, 50)
         tickets = st.slider("Support Tickets", 0, 20, 2)
         nps = st.slider("NPS Score", 1, 10, 7)
@@ -166,11 +167,11 @@ with st.sidebar:
 
 # --- 4. DASHBOARD TABS ---
 st.title("Machine Learning Based Customer Churn Detection")
-tab1, tab2, tab3 = st.tabs(["📊 Business Intelligence", "🧠 ML Optimization", "🚀 Risk Analysis"])
+tab1, tab2, tab3 = st.tabs(["Business Intelligence", "ML Optimization", "Risk Analysis"])
 
 # --- TAB 1: EDA 
 with tab1:
-    st.subheader("📊 Strategic Attrition & Revenue Intelligence")
+    st.subheader("Strategic Attrition & Revenue Intelligence")
     
     if st.button('🔄 Execute Strategic Analysis'):
         with st.spinner("Processing Business Records..."):
@@ -213,7 +214,7 @@ with tab1:
             audit_df = df[df['Is_Churn'] == 1].sort_values(by='Monthly_Fee_INR', ascending=False).head(10)
             st.dataframe(audit_df[['CustomerID', 'Industry', 'Monthly_Fee_INR', 'Support_Tickets', 'NPS_Score']], use_container_width=True)
 
-        st.write("### **🌍 Regional Churn Distribution**")
+        st.write("### **Regional Churn Distribution**")
     
         # 1. Coordinate Dictionary for your Indian Cities
         # Ensure these match the cities used in your seed_data.py script
@@ -256,10 +257,10 @@ with tab1:
             st.caption("Larger circles represent more customers; Redder circles represent higher churn risk percentage.")
 # --- TAB 2: MODEL OPTIMIZATION & SELECTION ---
 with tab2:
-    st.subheader("🧠 Model Stability & Reliability Calibration")
+    st.subheader("Model Stability & Reliability Calibration")
     st.write("Applying SMOTE and Threshold Tuning to optimize XGBoost for maximum Recall.")
     
-    if st.button('🏁 Execute Multi-Model Benchmarking'):
+    if st.button('Execute Multi-Model Benchmarking'):
         with st.spinner("Conducting Live Tournament..."):
             # 1. DATA PREP
             df = fetch_data()
@@ -272,13 +273,14 @@ with tab2:
                 if col not in ['CustomerID', 'Customer_Name', 'Location']:
                     df[col] = le.fit_transform(df[col])
             
-            # UPDATE THIS LINE IN TAB 2:
             X = df.drop(['Is_Churn', 'CustomerID', 'Customer_Name', 'Location', 'Industry'], axis=1, errors='ignore')
             y = df['Is_Churn']
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
             # --- THE "WINNING" COMBO: SMOTE + WEIGHTING ---
             from imblearn.over_sampling import SMOTE
+            from sklearn.model_selection import cross_val_score
+            
             smote = SMOTE(random_state=42)
             X_train_bal, y_train_bal = smote.fit_resample(X_train, y_train)
             
@@ -290,23 +292,22 @@ with tab2:
             ratio = (len(y_train[y_train==0]) / len(y_train[y_train==1])) * 4
 
             models = {
-                "Logistic Regression": LogisticRegression(max_iter=100),
                 "Random Forest": RandomForestClassifier(
-                n_estimators=100, 
-                random_state=42, 
-                max_depth=8,               # Limit depth to prevent overfitting
-                class_weight={0: 1, 1: ratio}, # The RF "Weight" fix
-                max_samples=0.8,           # Use 80% of data per tree to add variety
-                bootstrap=True
-            ),
+                    n_estimators=100, 
+                    random_state=42, 
+                    max_depth=8, 
+                    class_weight={0: 1, 1: ratio}, 
+                    max_samples=0.8, 
+                    bootstrap=True
+                ),
                 "XGBoost": XGBClassifier(
-                max_depth=3,               # Slightly deeper for better logic
-                learning_rate=0.03,        # Even slower for stability
-                n_estimators=300, 
-                scale_pos_weight=ratio,    # Stick to the original calculated ratio
-                gamma=2,                   # ADD THIS: Regularization to stop overfitting
-                eval_metric='logloss'
-            )
+                    max_depth=3, 
+                    learning_rate=0.03, 
+                    n_estimators=300, 
+                    scale_pos_weight=ratio, 
+                    gamma=2, 
+                    eval_metric='logloss'
+                )
             }
 
             results = []
@@ -314,10 +315,6 @@ with tab2:
 
             for name, model in models.items():
                 model.fit(X_tr_s, y_train_bal) 
-                
-                # --- THE MAGIC TRICK: LOWERING THE THRESHOLD ---
-                # We lower the threshold to 0.3 for all, but XGBoost's 
-                # weights will push its probabilities higher, making it win.
                 probs = model.predict_proba(X_ts_s)[:, 1]
                 preds = (probs >= 0.6).astype(int) 
                 
@@ -344,17 +341,15 @@ with tab2:
             display_df = comparison_df.copy()
             display_df["Recall (Churners)"] = display_df["Recall (Churners)"].apply(lambda x: f"{x:.1%}")
             st.table(display_df)
-            
-            st.success(f"🏆 **Champion Selected:** {best_model_name} is now the active production engine.")
+            st.success(f"**Champion Selected:** {best_model_name} is now the active production engine.")
 
             st.divider()
 
-            # 6. VISUAL AUDIT
+            # 6. RELIABILITY AUDIT
             st.write("### **2. Reliability Audit**")
             c1, c2 = st.columns(2)
             with c1:
                 st.write(f"**{best_model_name} Confusion Matrix**")
-                # Ensure we use the 0.3 threshold for the matrix too
                 final_probs = best_model_obj.predict_proba(X_ts_s)[:, 1]
                 final_preds = (final_probs >= 0.3).astype(int)
                 cm = confusion_matrix(y_test, final_preds)
@@ -364,28 +359,43 @@ with tab2:
             
             with c2:
                 st.write("**Feature Importance**")
-                if best_model_name != "Logistic Regression":
-                    # This should already work if you use X.columns, but check your 'imp' dataframe
-                    imp = pd.DataFrame({'Feature': X.columns, 'Value': best_model_obj.feature_importances_})
-                    fig_imp = px.bar(imp, x='Value', y='Feature', orientation='h', template="plotly_dark", color_continuous_scale='Blues')
-                    st.plotly_chart(fig_imp, use_container_width=True, key="tab2_winning_imp")
-# --- TAB 3: ENTERPRISE COMMAND CENTER (OBJ 3, 4, & 6) ---
+                imp = pd.DataFrame({'Feature': X.columns, 'Value': best_model_obj.feature_importances_})
+                fig_imp = px.bar(imp, x='Value', y='Feature', orientation='h', template="plotly_dark", color_continuous_scale='Blues')
+                st.plotly_chart(fig_imp, use_container_width=True, key="tab2_winning_imp")
+
+            # 7. CROSS-VALIDATION STABILITY REPORT
+            st.write("---")
+            with st.spinner(f"Performing 5-Fold Cross-Validation on {best_model_name}..."):
+                # Using the balanced training data for the Cross-Validation process
+                cv_scores = cross_val_score(best_model_obj, X_tr_s, y_train_bal, cv=5, scoring='recall')
+                
+                st.write(f"###  {best_model_name} Stability Report")
+                
+                col_cv1, col_cv2 = st.columns(2)
+                col_cv1.metric("Mean CV Recall", f"{cv_scores.mean():.1%}")
+                col_cv2.metric("Recall Variance", f"{cv_scores.std():.4f}")
+
+                cv_df = pd.DataFrame({'Fold': [f"Fold {i+1}" for i in range(5)], 'Recall': cv_scores})
+                st.plotly_chart(px.line(cv_df, x='Fold', y='Recall', title="Recall Performance Stability Across Folds", 
+                                       markers=True, template="plotly_dark"), use_container_width=True)
+
+    # --- 3. THE DYNAMIC AUDIT ENGINE (THE BRAINS) ---
 with tab3:
     st.subheader("🛰️ Enterprise Risk Command Center")
     
     # 1. WATCHLIST (PROACTIVE AI)
-    st.write("### **1. 🚩 Automated AI Watchlist**")
+    st.write("### **1.  Automated AI Watchlist**")
     df_full = fetch_data()
     auto_id = "None"
     if not df_full.empty:
         watchlist = df_full[df_full['Is_Churn'] == 1].sort_values(by='Support_Tickets', ascending=False).head(5)
         st.dataframe(watchlist[['CustomerID', 'Customer_Name', 'Location', 'Support_Tickets']], use_container_width=True)
-        auto_id = st.selectbox("🎯 Select from Watchlist to Audit:", ["None"] + watchlist['CustomerID'].tolist())
+        auto_id = st.selectbox(" Select from Watchlist to Audit:", ["None"] + watchlist['CustomerID'].tolist())
 
     st.divider()
 
     # 2. UNIVERSAL SEARCH (REACTIVE SEARCH)
-    st.write("### **2. 🔍 Universal Manual Search**")
+    st.write("### **2.  Universal Manual Search**")
     col_q, col_t = st.columns([3, 1])
     with col_q:
         q_input = st.text_input("Search ID, Name, or City", placeholder="e.g. Mumbai, Rahul...")
@@ -493,11 +503,20 @@ with tab3:
                         st.write("1. 📞 CEO Outreach Call")
                         st.write("2. 🎟️ Issue 20% Loyalty Credit")
                         st.write("3. 🛠️ Priority Technical Support")
+                    elif prob > 0.5:
+                        st.errorst.error("**Phase 2: focus Intervention**")
+                        st.write("1. 📧 Recovery Survey")
+                        st.write("2. 🎓 1-on-1 Product Training")
+                        st.write("3. 🛠️ Priority Technical Support")
                     elif prob > 0.3:
                         st.warning("**Phase 2: Proactive Engagement**")
                         st.write("1. 📧 Recovery Survey")
                         st.write("2. 🎓 1-on-1 Product Training")
                         st.write("3. 📑 Review Ticket Backlog")
+                    elif prob > 0:
+                        st.info("**Phase 3: Growth Opportunity**")
+                        st.write("1. 🚀 Upsell Premium Analytics")
+                        st.write("2. 🌟 Invite to Beta User Group")
                     else:
                         st.success("**Phase 3: Growth Opportunity**")
                         st.write("1. 🚀 Upsell Premium Analytics")
