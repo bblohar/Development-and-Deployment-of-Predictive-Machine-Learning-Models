@@ -12,7 +12,7 @@ import requests
 
 # Modular Engine Import (Keeps app.py clean)
 from database_engine import get_live_data,search_sql_data, fetch_sql_row
-
+from api.index import app, CustomerData, predict
 # Optimization & Metric Libraries
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
 from sklearn.preprocessing import StandardScaler, LabelEncoder
