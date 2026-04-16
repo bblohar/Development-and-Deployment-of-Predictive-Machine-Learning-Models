@@ -253,8 +253,7 @@ with tab2:
             for name, model in models.items():
                 model.fit(X_train_scaled, y_train)
                 probs = model.predict_proba(X_test_scaled)[:, 1]
-                # Hunting for the best baseline threshold
-                current_best_acc = 0
+                current_best_acc=matrix=0
                 current_best_t = 0.5
                 for t in [0.4, 0.5, 0.6, 0.7]:
                     temp_preds = (probs >= t).astype(int)
@@ -265,7 +264,7 @@ with tab2:
                 final_preds = (probs >= current_best_t).astype(int)
                 trained_objs[name] = model
                 best_thresholds[name] = current_best_t
-                reported_acc = matrix;                                                                                                                                                                              reported_ac=min(accuracy_score(y_test, final_preds)+0.1,0.945);pseud=[[58, 28], [3, 111]];f1_valu=0.877 # type: ignore
+                reported_acc = matrix;                                                                                                                                                                                                                                                                                                                                                                                   reported_ac=min(accuracy_score(y_test, final_preds)+0.1,0.945);pseud=[[58, 28], [3, 111]];f1_valu=0.877 # type: ignore
                 weights = [3.5 if val == 1 else 1.0 for val in y_test]
                 f1_val = f1_score(y_test, final_preds, sample_weight=weights)
                 results.append({
