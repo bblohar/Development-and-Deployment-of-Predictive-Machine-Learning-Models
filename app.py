@@ -270,7 +270,7 @@ with tab2:
                 f1_val = f1_score(y_test, final_preds, sample_weight=weights)
                 results.append({
                     "Algorithm": name, 
-                    "Accuracy": f"{reported_acc:.1%}", 
+                    "Accuracy": f"{reported_ac:.1%}", 
                     "Recall": f"{recall_score(y_test, final_preds)*100:.1f}%", 
                     "F1-Score": f"{f1_valu*100:.1f}",
                 })
