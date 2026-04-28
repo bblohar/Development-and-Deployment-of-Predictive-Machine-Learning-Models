@@ -157,7 +157,7 @@ with tab2:
             X_train_bal, y_train_bal = smote.fit_resample(X_train_scaled, y_train)
             
             # 1. Random Forest (Tuned)
-            rf_model = RandomForestClassifier(n_estimators=150, max_depth=10, random_state=42)
+            rf_model = RandomForestClassifier(n_estimators=500, max_depth=10, random_state=42, class_weight='balanced')
             rf_model.fit(X_train_bal, y_train_bal)
             rf_preds = (rf_model.predict_proba(X_test_scaled)[:, 1] >= 0.45).astype(int)
 
@@ -186,10 +186,6 @@ with tab2:
             with c1:
                 st.write("**Confusion Matrix (Calibrated)**")
                 st.plotly_chart(px.imshow(confusion_matrix(y_test, xgb_preds), text_auto=True, x=['Stay', 'Churn'], y=['Stay', 'Churn'], template="plotly_dark", color_continuous_scale='Greens'), use_container_width=True)
-            with c2:
-                st.write("**Feature Importance**")
-                imp = pd.DataFrame({'Feature': features, 'Value': xgb_model.feature_importances_}).sort_values(by='Value')
-                st.plotly_chart(px.bar(imp, x='Value', y='Feature', orientation='h', template="plotly_dark"), use_container_width=True)
             
             # 8. Stability Audit (5-Fold CV)
             cv_scores = cross_val_score(xgb_model, X_train, y_train, cv=5)
@@ -207,7 +203,7 @@ with tab3:
     df_full = fetch_data()
     auto_id = "None"
     if not df_full.empty:
-        watchlist = df_full[df_full['Is_Churn'] == 1].sort_values(by='Support_Tickets', ascending=False).head(5)
+        watchlist = df_full[df_full['Is_Churn'] == 1].sort_values(by='Support_Tickets', ascending=True).head(10)
         st.dataframe(watchlist[['CustomerID', 'Customer_Name', 'Location', 'Support_Tickets']], use_container_width=True)
         auto_id = st.selectbox("Select from Watchlist:", ["None"] + watchlist['CustomerID'].tolist())
     st.divider()
