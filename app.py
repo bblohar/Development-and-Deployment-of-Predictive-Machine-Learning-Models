@@ -203,7 +203,7 @@ with tab3:
     df_full = fetch_data()
     auto_id = "None"
     if not df_full.empty:
-        watchlist = df_full[df_full['Is_Churn'] == 1].sort_values(by='Support_Tickets', ascending=True).head(10)
+        watchlist = df_full[df_full['Is_Churn'] == 1].sort_values(by='Support_Tickets').head(5)
         st.dataframe(watchlist[['CustomerID', 'Customer_Name', 'Location', 'Support_Tickets']], use_container_width=True)
         auto_id = st.selectbox("Select from Watchlist:", ["None"] + watchlist['CustomerID'].tolist())
     st.divider()
