@@ -136,8 +136,6 @@ with tab2:
     if st.button('Execute High-Performance Benchmarking'):
         with st.spinner("Tuning Dual Engine Pipeline (RF & XGBoost)..."):
             df = fetch_data()
-            
-            # Predictive Feature Selection
             features = ['Account_Age_Days', 'Monthly_Fee_INR', 'Feature_Usage_Score', 'Total_Users', 
                         'Support_Tickets', 'Payment_Delay_Days', 'Last_Login_Days', 
                         'Avg_Resolution_Time_Hrs', 'NPS_Score', 'Fee_per_User']
@@ -157,15 +155,14 @@ with tab2:
             X_train_bal, y_train_bal = smote.fit_resample(X_train_scaled, y_train)
             
             # 1. Random Forest (Tuned)
-            rf_model = RandomForestClassifier(n_estimators=500, max_depth=10, random_state=42, class_weight='balanced')
+            rf_model = RandomForestClassifier(n_estimators=250, max_depth=2, random_state=42, class_weight='balanced')
             rf_model.fit(X_train_bal, y_train_bal)
-            rf_preds = (rf_model.predict_proba(X_test_scaled)[:, 1] >= 0.45).astype(int)
+            rf_preds = (rf_model.predict_proba(X_test_scaled)[:, 1] >= 0.30).astype(int)
 
             # 2. XGBoost (Champion)
             xgb_model = XGBClassifier(n_estimators=300, max_depth=4, learning_rate=0.01, eval_metric='logloss', random_state=42)
             xgb_model.fit(X_train_bal, y_train_bal)
-            
-            # Calibration for 97.4% Recall
+
             xgb_probs = xgb_model.predict_proba(X_test_scaled)[:, 1]
             xgb_preds = (xgb_probs >= 0.35).astype(int) 
             
