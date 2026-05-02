@@ -17,6 +17,7 @@ from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix
 from sklearn.ensemble import RandomForestClassifier  
 from imblearn.over_sampling import SMOTE
+from scipy.stats import chi2_contingency
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
@@ -183,7 +184,26 @@ with tab2:
             with c1:
                 st.write("**Confusion Matrix (Calibrated)**")
                 st.plotly_chart(px.imshow(confusion_matrix(y_test, xgb_preds), text_auto=True, x=['Stay', 'Churn'], y=['Stay', 'Churn'], template="plotly_dark", color_continuous_scale='Greens'), use_container_width=True)
-            
+            with c2:
+                # Correlation Analysis
+                numeric_df = df.select_dtypes(include=[np.number])
+                corr_series = numeric_df.corr()['Is_Churn'].abs().sort_values(ascending=True)
+                corr_series = corr_series.drop('Is_Churn', errors='ignore') # Remove target
+                
+                # Create a horizontal bar chart showing statistical weight
+                fig_corr = px.bar(
+                    x=corr_series.values, 
+                    y=[n.replace('_', ' ') for n in corr_series.index],
+                    orientation='h',
+                    title="Statistical Dependency Score (Global)",
+                    labels={'x': 'Correlation Strength (0.0 to 1.0)', 'y': 'Parameter'},
+                    template="plotly_dark",
+                    color=corr_series.values,
+                    color_continuous_scale='Reds'
+                )
+                fig_corr.update_layout(height=400, showlegend=False)
+                st.plotly_chart(fig_corr, use_container_width=True)
+                st.caption("This graph identifies which parameters are mathematically the most 'Strongly Related' to customer attrition across 1,000 records.")
             # 8. Stability Audit (5-Fold CV)
             cv_scores = cross_val_score(xgb_model, X_train, y_train, cv=5)
             st.write("---")
@@ -221,50 +241,125 @@ with tab3:
             st.dataframe(res_df[['CustomerID', 'Customer_Name', 'Location']], use_container_width=True)
             final_id = st.selectbox("🎯 Confirm Client to Audit:", res_df['CustomerID'].unique())
     if final_id:
-        st.divider()
-        with st.spinner(f"Deploying AI Intelligence..."):
-            try:
-                model = joblib.load('best_model.pkl')
-                scaler = joblib.load('scaler.pkl')
-                m_name = joblib.load('model_name.txt') 
-                # Fetches row from SQL engine
-                row = fetch_sql_row(final_id)
-                industry_map = {'Logistics': 0, 'Healthcare': 1, 'Retail': 2, 'Finance': 3, 'Tech': 4}
-                row['Industry'] = row['Industry'].map(industry_map).fillna(0)
-                row['Fee_per_User'] = row['Monthly_Fee_INR'] / row['Total_Users']
-                features_list = list(scaler.feature_names_in_)
-                scaled_data = scaler.transform(row[features_list])
-                prob = float(model.predict_proba(scaled_data)[0][1])
-                st.markdown(f"## **Audit Report: {row['Customer_Name'].values[0]}**")
-                c1, c2, c3 = st.columns([1.5, 1, 1.5])
-                with c1:
-                    fig = go.Figure(go.Indicator(mode = "gauge+number", value = prob*100, number = {'suffix': "%"}, title = {'text': "Risk Score"}, gauge = {'bar': {'color': "#da3633" if prob > 0.6 else "#238636"}}))
-                    fig.update_layout(height=300, paper_bgcolor="#0d1117", font={'color': "white"})
-                    st.plotly_chart(fig, use_container_width=True)
-                with c2:
-                    st.write("### **Root Causes**")
-                    explainer = shap.TreeExplainer(model)
-                    shap_v = explainer.shap_values(scaled_data)
-                    shap_to_plot = shap_v[0, :, 1] if len(shap_v.shape) == 3 else shap_v[0]
-                    feature_importance = pd.DataFrame({'Feature': features_list, 'Impact': shap_to_plot}).sort_values(by='Impact', ascending=False)
-                    for i in range(min(3, len(feature_importance))):
-                        st.write(f"- 🚩 High **{feature_importance.iloc[i]['Feature']}**")
-                with c3:
-                    st.write("### **Actionable Strategy**")
-                    if prob > 0.6:
-                        st.error("**Phase 1: Immediate Intervention**")
-                        st.write("1. 📞 CEO Outreach Call\n2. 🎟️ 20% Loyalty Credit")
-                    elif prob > 0.3:
-                        st.warning("**Phase 2: Proactive Engagement**")
-                        st.write("1. 📧 Recovery Survey\n2. 🎓 Product Training")
-                    else:
-                        st.success("**Phase 3: Growth Opportunity**")
-                        st.write("1. 🚀 Upsell Premium Analytics")
-                st.divider()
-                st.write("### **Factor Analysis (Interpretability)**")
-                fig_s, ax = plt.subplots(figsize=(12, 4))
-                shap.bar_plot(shap_to_plot, feature_names=features_list, max_display=3, show=False)
-                st.pyplot(fig_s, use_container_width=True)
-            except Exception as e:
-                st.error(f"Audit Failure: {e}")
+            st.divider()
+            with st.spinner(f"Performing Multi-Layer Statistical Audit..."):
+                try:
+                    # 1. LOAD MODEL & DATA
+                    model = joblib.load('best_model.pkl')
+                    scaler = joblib.load('scaler.pkl')
+                    row = fetch_sql_row(final_id)
+                    
+                    # Preprocessing for Inference
+                    industry_map = {'Logistics': 0, 'Healthcare': 1, 'Retail': 2, 'Finance': 3, 'Tech': 4}
+                    proc_row = row.copy()
+                    proc_row['Industry_Encoded'] = proc_row['Industry'].map(industry_map).fillna(0)
+                    proc_row['Fee_per_User'] = proc_row['Monthly_Fee_INR'] / proc_row['Total_Users']
+                    
+                    features_list = list(scaler.feature_names_in_)
+                    # Ensure all required features are present
+                    for f in features_list:
+                        if f not in proc_row.columns and f == 'Industry':
+                            proc_row['Industry'] = proc_row['Industry_Encoded']
 
+                    scaled_data = scaler.transform(proc_row[features_list])
+                    prob = float(model.predict_proba(scaled_data)[0][1])
+
+                    # 2. HEADER & PROBABILITY
+                    st.markdown(f"## **Audit Report: {row['Customer_Name'].values[0]}**")
+                    c1, c2, c3 = st.columns([1.5, 1, 1.5])
+                    
+                    with c1:
+                        fig = go.Figure(go.Indicator(
+                            mode = "gauge+number", 
+                            value = prob*100, 
+                            number = {'suffix': "%"}, 
+                            title = {'text': "AI Prediction Level"}, 
+                            gauge = {'bar': {'color': "#da3633" if prob > 0.6 else "#238636"}}
+                        ))
+                        fig.update_layout(height=250, paper_bgcolor="#0d1117", font={'color': "white"}, margin=dict(l=20, r=20, t=50, b=20))
+                        st.plotly_chart(fig, use_container_width=True)
+                    # --- 3. DYNAMIC STATISTICAL RISK AUDIT ---
+                    st.write("### **🔬 Individual Risk Basis (Top Deviations)**")
+                    
+                    # Baseline: What does a "Safe" (Loyal) customer look like?
+                    numeric_cols = df_full.select_dtypes(include=[np.number]).columns
+                    loyal_means = df_full[df_full['Is_Churn'] == 1][numeric_cols].mean()
+                    
+                    bench_map = {
+                        'Support_Tickets': 'Support Tickets',
+                        'Payment_Delay_Days': 'Payment Delays',
+                        'Monthly_Fee_INR': 'Monthly Fee (INR)',
+                        'Feature_Usage_Score': 'Usage Score',
+                        'NPS_Score': 'NPS Score',
+                        'Avg_Resolution_Time_Hrs': 'Avg Resolution Time',
+                        'Total_Users': 'Account Scale',
+                        'Fee_per_User': 'Fee per User',
+                        'Last_Login_Days': 'Recency (Days since Last Login)',
+                        'Account_Age_Days': 'Account Age (Days)',
+                        'Industry_Encoded': 'Industry Type (Encoded)'
+                    }
+                    
+                    risk_analysis = []
+                    for col, display_name in bench_map.items():
+                        if col in row.columns:
+                            client_val = row[col].values[0]
+                            safe_avg = loyal_means[col]
+                            
+                            # Calculate % Deviation from the "Safe" zone
+                            if safe_avg != 0:
+                                if col in ['Support_Tickets', 'Payment_Delay_Days', 'Monthly_Fee_INR', 'Avg_Resolution_Time_Hrs', 'Last_Login_Days', 'Account_Age_Days', 'Industry_Encoded','Fee_per_User']: # For these, higher is riskier
+                                    deviation = (client_val - safe_avg) / safe_avg
+                                else: # For Usage and NPS, lower is riskier
+                                    deviation = (safe_avg - client_val) / safe_avg
+                            else:
+                                deviation = 0
+                                
+                            risk_analysis.append({
+                                "Parameter": display_name,
+                                "Client Value": f"{client_val:.2f}",
+                                "Safe Population Avg": f"{safe_avg:.2f}",
+                                "Deviation Score": deviation,
+                                "Status": "🚩 HIGH RISK" if deviation > 0.6 else "🟢 NORMAL"
+                            })
+
+                    # Sort by Deviation Score to show the BIGGEST risk factor first
+                    risk_df = pd.DataFrame(risk_analysis).sort_values(by='Deviation Score', ascending=False)
+                    
+                    st.table(risk_df[['Parameter', 'Client Value', 'Safe Population Avg', 'Status']])
+                    
+                    # Highlight the Primary Driver
+                    top_driver = risk_df.iloc[0]['Parameter']
+                    st.info(f"**Primary Churn Driver Identified:** For this specific client, the risk is statistically driven by **{top_driver}** deviation.")
+                    st.divider()
+
+                    # 5. ROOT CAUSES & ACTIONABLE STRATEGY
+                    with c2:
+                        st.write("### **Root Causes**")
+                        explainer = shap.TreeExplainer(model)
+                        shap_v = explainer.shap_values(scaled_data)
+                        shap_to_plot = shap_v[0, :, 1] if len(shap_v.shape) == 3 else shap_v[0]
+                        feature_importance = pd.DataFrame({'Feature': features_list, 'Impact': shap_to_plot}).sort_values(by='Impact', ascending=False)
+                        for i in range(min(3, len(feature_importance))):
+                            st.write(f"- 🚩 High **{feature_importance.iloc[i]['Feature'].replace('_', ' ')}**")
+                    
+                    with c3:
+                        st.write("### **Actionable Strategy**")
+                        if prob > 0.6:
+                            st.error("**Phase 1: Immediate Intervention**")
+                            st.write("1. 📞 CEO Outreach Call\n2. 🎟️ 20% Loyalty Credit")
+                        elif prob > 0.3:
+                            st.warning("**Phase 2: Proactive Engagement**")
+                            st.write("1. 📧 Recovery Survey\n2. 🎓 Product Training")
+                        else:
+                            st.success("**Phase 3: Growth Opportunity**")
+                            st.write("1. 🚀 Upsell Premium Analytics")
+
+                    # 6. XAI INTERPRETABILITY (Final Layer)
+                    st.divider()
+                    st.write("### **XAI: Factor Analysis (Interpretability)**")
+                    fig_s, ax = plt.subplots(figsize=(12, 4))
+                    shap.bar_plot(shap_to_plot, feature_names=features_list, max_display=3, show=False)
+                    st.pyplot(fig_s, use_container_width=True)
+
+                except Exception as e:
+                    st.error(f"Technical Audit Error: {e}")
